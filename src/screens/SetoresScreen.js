@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator }
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { cores, fontes } from "../theme";
 
 export default function SetoresScreen({ navigation }) {
   const { profissional, signOut } = useAuth();
@@ -12,7 +13,6 @@ export default function SetoresScreen({ navigation }) {
   const carregarSetores = useCallback(async () => {
     if (!profissional) return;
     setCarregando(true);
-    // Busca os setores vinculados ao profissional pela tabela de junção
     const { data, error } = await supabase
       .from("profissional_setor")
       .select("setor:setores(id, nome)")
@@ -36,7 +36,7 @@ export default function SetoresScreen({ navigation }) {
   if (carregando) {
     return (
       <View style={styles.centro}>
-        <ActivityIndicator color="#2563EB" />
+        <ActivityIndicator color={cores.azul} />
       </View>
     );
   }
@@ -59,7 +59,7 @@ export default function SetoresScreen({ navigation }) {
             onPress={() => navigation.navigate("Pacientes", { setorId: item.id, setorNome: item.nome })}
           >
             <Text style={styles.cardTitulo}>{item.nome}</Text>
-            <Text style={styles.cardSeta}>→</Text>
+            <Text style={styles.cardSeta}>›</Text>
           </TouchableOpacity>
         )}
       />
@@ -72,13 +72,15 @@ export default function SetoresScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F172A", paddingHorizontal: 20, paddingTop: 60 },
-  centro: { flex: 1, backgroundColor: "#0F172A", justifyContent: "center", alignItems: "center" },
-  saudacao: { color: "#94A3B8", fontSize: 14 },
-  titulo: { color: "#FFFFFF", fontSize: 24, fontWeight: "700", marginBottom: 20 },
+  container: { flex: 1, backgroundColor: cores.fundo, paddingHorizontal: 20, paddingTop: 60 },
+  centro: { flex: 1, backgroundColor: cores.fundo, justifyContent: "center", alignItems: "center" },
+  saudacao: { color: cores.textoSecundario, fontSize: 13, fontFamily: fontes.regular },
+  titulo: { color: cores.texto, fontSize: 24, fontFamily: fontes.bold, marginBottom: 20 },
   card: {
-    backgroundColor: "#1E293B",
-    borderRadius: 12,
+    backgroundColor: cores.card,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: 14,
     paddingVertical: 18,
     paddingHorizontal: 18,
     marginBottom: 10,
@@ -86,9 +88,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  cardTitulo: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
-  cardSeta: { color: "#60A5FA", fontSize: 18 },
-  vazio: { color: "#64748B", marginTop: 20, textAlign: "center" },
+  cardTitulo: { color: cores.texto, fontSize: 16, fontFamily: fontes.semibold },
+  cardSeta: { color: cores.azul, fontSize: 20, fontFamily: fontes.regular },
+  vazio: { color: cores.textoSecundario, fontFamily: fontes.regular, marginTop: 20, textAlign: "center" },
   sair: { paddingVertical: 14, alignItems: "center", marginTop: "auto", marginBottom: 20 },
-  sairTexto: { color: "#F87171", fontSize: 14, fontWeight: "600" },
+  sairTexto: { color: cores.critico, fontSize: 14, fontFamily: fontes.semibold },
 });

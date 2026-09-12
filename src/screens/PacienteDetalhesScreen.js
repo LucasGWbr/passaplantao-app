@@ -9,6 +9,8 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../lib/supabase";
+import { cores, fontes } from "../theme";
+import { EstadoBadge } from "../components/StatusBadge";
 
 export default function PacienteDetalhesScreen({ route, navigation }) {
   const { pacienteId, pacienteNome, leito } = route.params;
@@ -20,7 +22,6 @@ export default function PacienteDetalhesScreen({ route, navigation }) {
   const carregarDados = useCallback(async () => {
     setCarregando(true);
 
-    // Histórico completo de passagens do paciente, mais recente primeiro
     const { data: passagens, error: erroPassagens } = await supabase
       .from("passagens_plantao")
       .select("id, data_hora, estado_geral, observacao, profissional:profissionais(nome)")
@@ -36,7 +37,6 @@ export default function PacienteDetalhesScreen({ route, navigation }) {
       setUltimaPassagem(passagens[0] ?? null);
     }
 
-    // Pendências ligadas à última passagem (se existir)
     if (passagens && passagens[0]) {
       const { data: pend, error: erroPend } = await supabase
         .from("pendencias")
@@ -82,21 +82,23 @@ export default function PacienteDetalhesScreen({ route, navigation }) {
   if (carregando) {
     return (
       <View style={styles.centro}>
-        <ActivityIndicator color="#2563EB" />
+        <ActivityIndicator color={cores.azul} />
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      <Text style={styles.eyebrow}>Leito {leito}</Text>
       <Text style={styles.titulo}>{pacienteNome}</Text>
-      <Text style={styles.subtitulo}>Leito {leito}</Text>
 
-      <View style={styles.bloco}>
-        <Text style={styles.blocoLabel}>ESTADO GERAL</Text>
-        <Text style={styles.blocoValor}>
-          {ultimaPassagem ? ultimaPassagem.estado_geral : "Sem registro ainda"}
-        </Text>
+      <View style={styles.card}>
+        <Text style={styles.cardLabel}>Estado geral</Text>
+        {ultimaPassagem ? (
+          <EstadoBadge estado={ultimaPassagem.estado_geral} />
+        ) : (
+          <Text style={styles.semRegistroTexto}>Sem registro ainda</Text>
+        )}
         {ultimaPassagem?.observacao ? (
           <Text style={styles.observacao}>{ultimaPassagem.observacao}</Text>
         ) : null}
@@ -111,32 +113,38 @@ export default function PacienteDetalhesScreen({ route, navigation }) {
       <Text style={styles.secaoTitulo}>Pendências</Text>
       {pendencias.length === 0 && <Text style={styles.vazio}>Nenhuma pendência registrada.</Text>}
       {pendencias.map((p) => (
-        <View key={p.id} style={styles.pendenciaCard}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => alternarStatusPendencia(p)}>
-            <Text
-              style={[
-                styles.pendenciaTexto,
-                p.status === "concluida" && styles.pendenciaConcluida,
-              ]}
-            >
-              {p.status === "concluida" ? "✓ " : "○ "}
-              {p.descricao}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => excluirPendencia(p.id)}>
+        <TouchableOpacity
+          key={p.id}
+          style={styles.pendenciaCard}
+          onPress={() => alternarStatusPendencia(p)}
+        >
+          <View style={[styles.checkbox, p.status === "concluida" && styles.checkboxMarcado]}>
+            {p.status === "concluida" && <Text style={styles.checkboxIcone}>✓</Text>}
+          </View>
+          <Text
+            style={[
+              styles.pendenciaTexto,
+              p.status === "concluida" && styles.pendenciaConcluida,
+            ]}
+          >
+            {p.descricao}
+          </Text>
+          <TouchableOpacity onPress={() => excluirPendencia(p.id)} hitSlop={8}>
             <Text style={styles.excluir}>excluir</Text>
           </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
       ))}
 
       <Text style={styles.secaoTitulo}>Histórico de passagens</Text>
       {historico.length === 0 && <Text style={styles.vazio}>Nenhum histórico ainda.</Text>}
       {historico.map((h) => (
         <View key={h.id} style={styles.historicoItem}>
-          <Text style={styles.historicoData}>
-            {new Date(h.data_hora).toLocaleString("pt-BR")}
-          </Text>
-          <Text style={styles.historicoEstado}>{h.estado_geral}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.historicoData}>
+              {new Date(h.data_hora).toLocaleString("pt-BR")}
+            </Text>
+          </View>
+          <EstadoBadge estado={h.estado_geral} tamanho="pequeno" />
         </View>
       ))}
 
@@ -151,43 +159,73 @@ export default function PacienteDetalhesScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F172A", paddingHorizontal: 20, paddingTop: 60 },
-  centro: { flex: 1, backgroundColor: "#0F172A", justifyContent: "center", alignItems: "center" },
-  titulo: { color: "#FFFFFF", fontSize: 24, fontWeight: "700" },
-  subtitulo: { color: "#94A3B8", fontSize: 14, marginBottom: 20 },
-  bloco: { backgroundColor: "#1E293B", borderRadius: 12, padding: 18, marginBottom: 24 },
-  blocoLabel: { color: "#60A5FA", fontSize: 12, fontWeight: "700", marginBottom: 6 },
-  blocoValor: { color: "#FFFFFF", fontSize: 18, fontWeight: "600" },
-  observacao: { color: "#CBD5E1", fontSize: 14, marginTop: 8 },
-  rodapePassagem: { color: "#64748B", fontSize: 12, marginTop: 10 },
-  secaoTitulo: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", marginBottom: 10, marginTop: 4 },
-  vazio: { color: "#64748B", fontSize: 13, marginBottom: 12 },
+  container: { flex: 1, backgroundColor: cores.fundo, paddingHorizontal: 20, paddingTop: 60 },
+  centro: { flex: 1, backgroundColor: cores.fundo, justifyContent: "center", alignItems: "center" },
+  eyebrow: { color: cores.textoSecundario, fontSize: 12, fontFamily: fontes.medium },
+  titulo: { color: cores.texto, fontSize: 22, fontFamily: fontes.bold, marginBottom: 20 },
+  card: {
+    backgroundColor: cores.card,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 24,
+  },
+  cardLabel: {
+    color: cores.azul,
+    fontSize: 11,
+    fontFamily: fontes.semibold,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 8,
+  },
+  semRegistroTexto: { color: cores.textoSecundario, fontFamily: fontes.regular, fontSize: 14 },
+  observacao: { color: cores.texto, fontSize: 13.5, fontFamily: fontes.regular, marginTop: 10, lineHeight: 20 },
+  rodapePassagem: { color: cores.textoSecundario, fontSize: 12, fontFamily: fontes.regular, marginTop: 12 },
+  secaoTitulo: { color: cores.texto, fontSize: 15, fontFamily: fontes.semibold, marginBottom: 10, marginTop: 4 },
+  vazio: { color: cores.textoSecundario, fontFamily: fontes.regular, fontSize: 13, marginBottom: 12 },
   pendenciaCard: {
-    backgroundColor: "#1E293B",
-    borderRadius: 10,
-    padding: 14,
+    backgroundColor: cores.card,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: 12,
+    padding: 12,
     marginBottom: 8,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10,
   },
-  pendenciaTexto: { color: "#FFFFFF", fontSize: 14 },
-  pendenciaConcluida: { color: "#64748B", textDecorationLine: "line-through" },
-  excluir: { color: "#F87171", fontSize: 12, marginLeft: 12 },
-  historicoItem: {
-    borderLeftWidth: 2,
-    borderLeftColor: "#334155",
-    paddingLeft: 12,
-    marginBottom: 12,
-  },
-  historicoData: { color: "#64748B", fontSize: 12 },
-  historicoEstado: { color: "#E2E8F0", fontSize: 14, marginTop: 2 },
-  botaoNovaPassagem: {
-    backgroundColor: "#2563EB",
-    borderRadius: 10,
-    paddingVertical: 15,
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: cores.borda,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxMarcado: { backgroundColor: cores.teal, borderColor: cores.teal },
+  checkboxIcone: { color: "#FFFFFF", fontSize: 12, fontFamily: fontes.bold },
+  pendenciaTexto: { color: cores.texto, fontSize: 13.5, fontFamily: fontes.regular, flex: 1 },
+  pendenciaConcluida: { color: cores.textoSecundario, textDecorationLine: "line-through" },
+  excluir: { color: cores.critico, fontSize: 12, fontFamily: fontes.medium },
+  historicoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderLeftWidth: 2,
+    borderLeftColor: cores.borda,
+    paddingLeft: 12,
+    marginBottom: 10,
+    gap: 10,
+  },
+  historicoData: { color: cores.textoSecundario, fontSize: 12, fontFamily: fontes.regular },
+  botaoNovaPassagem: {
+    backgroundColor: cores.azul,
+    borderRadius: 11,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 12,
   },
-  botaoTexto: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
+  botaoTexto: { color: "#FFFFFF", fontFamily: fontes.semibold, fontSize: 15 },
 });

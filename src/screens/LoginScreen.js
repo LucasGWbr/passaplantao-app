@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
+import { cores, fontes } from "../theme";
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -30,8 +31,6 @@ export default function LoginScreen() {
     if (error) {
       setErro("Email ou senha inválidos.");
     }
-    // Se o login der certo, o AuthContext atualiza a sessão
-    // e o AppNavigator troca de tela automaticamente.
   }
 
   return (
@@ -39,36 +38,47 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <View style={styles.logo}>
+        <View style={styles.logoCirculo}>
+          <Text style={styles.logoIniciais}>PP</Text>
+        </View>
+      </View>
+
       <Text style={styles.titulo}>PassaPlantão</Text>
-      <Text style={styles.subtitulo}>Entre com sua conta de profissional</Text>
+      <Text style={styles.slogan}>Comunicação que cuida.</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#94A3B8"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
-        placeholderTextColor="#94A3B8"
-        secureTextEntry
-        value={senha}
-        onChangeText={setSenha}
-      />
+      <View style={styles.card}>
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="nome@hospital.com"
+          placeholderTextColor={cores.placeholder}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
 
-      {erro && <Text style={styles.erro}>{erro}</Text>}
+        <Text style={styles.label}>Senha</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Sua senha"
+          placeholderTextColor={cores.placeholder}
+          secureTextEntry
+          value={senha}
+          onChangeText={setSenha}
+        />
 
-      <TouchableOpacity style={styles.botao} onPress={handleLogin} disabled={carregando}>
-        {carregando ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.botaoTexto}>Entrar</Text>
-        )}
-      </TouchableOpacity>
+        {erro && <Text style={styles.erro}>{erro}</Text>}
+
+        <TouchableOpacity style={styles.botao} onPress={handleLogin} disabled={carregando}>
+          {carregando ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.botaoTexto}>Entrar</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -76,45 +86,77 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F172A",
+    backgroundColor: cores.fundo,
     justifyContent: "center",
     paddingHorizontal: 28,
   },
-  titulo: {
-    fontSize: 30,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 4,
+  logo: { alignItems: "center", marginBottom: 20 },
+  logoCirculo: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: cores.azul,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  subtitulo: {
+  logoIniciais: { color: "#FFFFFF", fontFamily: fontes.bold, fontSize: 20 },
+  titulo: {
+    fontSize: 26,
+    fontFamily: fontes.bold,
+    color: cores.azul,
+    textAlign: "center",
+  },
+  slogan: {
     fontSize: 14,
-    color: "#94A3B8",
+    fontFamily: fontes.regular,
+    fontStyle: "italic",
+    color: cores.textoSecundario,
+    textAlign: "center",
     marginBottom: 32,
   },
+  card: {
+    backgroundColor: cores.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    padding: 20,
+  },
+  label: {
+    fontSize: 13,
+    fontFamily: fontes.medium,
+    color: cores.texto,
+    marginBottom: 6,
+    marginTop: 4,
+  },
   input: {
-    backgroundColor: "#1E293B",
-    color: "#FFFFFF",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: cores.borda,
+    color: cores.texto,
     borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 15,
-    marginBottom: 12,
+    fontFamily: fontes.regular,
+    marginBottom: 14,
   },
   erro: {
-    color: "#F87171",
-    marginBottom: 8,
+    color: cores.critico,
     fontSize: 13,
+    fontFamily: fontes.medium,
+    marginBottom: 10,
   },
   botao: {
-    backgroundColor: "#2563EB",
-    borderRadius: 10,
-    paddingVertical: 15,
+    backgroundColor: cores.azul,
+    borderRadius: 11,
+    height: 48,
     alignItems: "center",
-    marginTop: 8,
+    justifyContent: "center",
+    marginTop: 6,
   },
   botaoTexto: {
     color: "#FFFFFF",
-    fontWeight: "600",
+    fontFamily: fontes.semibold,
     fontSize: 15,
   },
 });

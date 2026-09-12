@@ -2,6 +2,8 @@ import { useCallback, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../lib/supabase";
+import { cores, fontes } from "../theme";
+import { EstadoBadge } from "../components/StatusBadge";
 
 export default function PacientesScreen({ route, navigation }) {
   const { setorId, setorNome } = route.params;
@@ -10,7 +12,8 @@ export default function PacientesScreen({ route, navigation }) {
 
   const carregarPacientes = useCallback(async () => {
     setCarregando(true);
-    const { data, error } = await supabase
+
+    const { data: listaPacientes, error } = await supabase
       .from("pacientes")
       .select("id, identificacao, leito")
       .eq("setor_id", setorId)
@@ -19,9 +22,25 @@ export default function PacientesScreen({ route, navigation }) {
     if (error) {
       console.warn("Erro ao carregar pacientes:", error.message);
       setPacientes([]);
-    } else {
-      setPacientes(data);
+      setCarregando(false);
+      return;
     }
+
+    // Busca a última passagem de cada paciente para exibir o status atual
+    const comStatus = await Promise.all(
+      listaPacientes.map(async (paciente) => {
+        const { data: ultima } = await supabase
+          .from("passagens_plantao")
+          .select("estado_geral, data_hora")
+          .eq("paciente_id", paciente.id)
+          .order("data_hora", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        return { ...paciente, ultimoEstado: ultima?.estado_geral ?? null };
+      })
+    );
+
+    setPacientes(comStatus);
     setCarregando(false);
   }, [setorId]);
 
@@ -33,11 +52,11 @@ export default function PacientesScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titulo}>{setorNome}</Text>
-      <Text style={styles.subtitulo}>Pacientes / leitos</Text>
+      <Text style={styles.eyebrow}>{setorNome}</Text>
+      <Text style={styles.titulo}>Pacientes</Text>
 
       {carregando ? (
-        <ActivityIndicator color="#2563EB" style={{ marginTop: 20 }} />
+        <ActivityIndicator color={cores.azul} style={{ marginTop: 20 }} />
       ) : (
         <FlatList
           data={pacientes}
@@ -55,11 +74,15 @@ export default function PacientesScreen({ route, navigation }) {
                 })
               }
             >
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitulo}>{item.identificacao}</Text>
                 <Text style={styles.cardSub}>Leito {item.leito}</Text>
               </View>
-              <Text style={styles.cardSeta}>→</Text>
+              {item.ultimoEstado ? (
+                <EstadoBadge estado={item.ultimoEstado} tamanho="pequeno" />
+              ) : (
+                <Text style={styles.semRegistro}>Sem registro</Text>
+              )}
             </TouchableOpacity>
           )}
         />
@@ -69,21 +92,24 @@ export default function PacientesScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F172A", paddingHorizontal: 20, paddingTop: 60 },
-  titulo: { color: "#FFFFFF", fontSize: 24, fontWeight: "700" },
-  subtitulo: { color: "#94A3B8", fontSize: 14, marginBottom: 20 },
+  container: { flex: 1, backgroundColor: cores.fundo, paddingHorizontal: 20, paddingTop: 60 },
+  eyebrow: { color: cores.textoSecundario, fontSize: 12, fontFamily: fontes.medium, marginBottom: 2 },
+  titulo: { color: cores.texto, fontSize: 22, fontFamily: fontes.bold, marginBottom: 20 },
   card: {
-    backgroundColor: "#1E293B",
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
+    backgroundColor: cores.card,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginBottom: 10,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 10,
   },
-  cardTitulo: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
-  cardSub: { color: "#94A3B8", fontSize: 13, marginTop: 2 },
-  cardSeta: { color: "#60A5FA", fontSize: 18 },
-  vazio: { color: "#64748B", marginTop: 20, textAlign: "center" },
+  cardTitulo: { color: cores.texto, fontSize: 15, fontFamily: fontes.semibold },
+  cardSub: { color: cores.textoSecundario, fontSize: 12.5, fontFamily: fontes.regular, marginTop: 2 },
+  semRegistro: { color: cores.textoSecundario, fontSize: 11.5, fontFamily: fontes.medium },
+  vazio: { color: cores.textoSecundario, fontFamily: fontes.regular, marginTop: 20, textAlign: "center" },
 });

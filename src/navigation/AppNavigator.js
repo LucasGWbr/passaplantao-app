@@ -1,7 +1,8 @@
 import { View, ActivityIndicator } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAuth } from "../context/AuthContext";
+import { cores } from "../theme";
 
 import LoginScreen from "../screens/LoginScreen";
 import SetoresScreen from "../screens/SetoresScreen";
@@ -11,9 +12,14 @@ import NovaPassagemScreen from "../screens/NovaPassagemScreen";
 
 const Stack = createNativeStackNavigator();
 
+const temaNavegacao = {
+  ...DefaultTheme,
+  colors: { ...DefaultTheme.colors, background: cores.fundo },
+};
+
 const opcoesHeader = {
-  headerStyle: { backgroundColor: "#0F172A" },
-  headerTintColor: "#FFFFFF",
+  headerStyle: { backgroundColor: cores.fundo },
+  headerTintColor: cores.azul,
   headerShadowVisible: false,
   headerTitle: "",
 };
@@ -23,14 +29,14 @@ export default function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#0F172A", justifyContent: "center" }}>
-        <ActivityIndicator color="#2563EB" />
+      <View style={{ flex: 1, backgroundColor: cores.fundo, justifyContent: "center" }}>
+        <ActivityIndicator color={cores.azul} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={temaNavegacao}>
       <Stack.Navigator>
         {!session ? (
           <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
