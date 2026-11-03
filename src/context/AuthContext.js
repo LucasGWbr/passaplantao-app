@@ -15,12 +15,16 @@ export function AuthProvider({ children }) {
     }
     const { data, error } = await supabase
       .from("profissionais")
-      .select("id, nome, email, funcao, auth_id")
+      .select("id, nome, email, funcao, auth_id, ativo")
       .eq("auth_id", authId)
       .single();
 
     if (error) {
       console.warn("Não foi possível carregar o profissional:", error.message);
+      setProfissional(null);
+    } else if (data?.ativo === false) {
+      setProfissional(data);
+      await supabase.auth.signOut();
       setProfissional(null);
     } else {
       setProfissional(data);

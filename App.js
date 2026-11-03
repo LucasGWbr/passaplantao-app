@@ -1,5 +1,6 @@
 import { View, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
   useFonts,
   Inter_400Regular,
@@ -9,7 +10,7 @@ import {
 } from "@expo-google-fonts/inter";
 import { AuthProvider } from "./src/context/AuthContext";
 import AppNavigator from "./src/navigation/AppNavigator";
-import { cores } from "./src/theme";
+import { cores } from "./src/theme.js";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -28,9 +29,11 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <StatusBar style="dark" />
-      <AppNavigator />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <StatusBar style="dark" />
+        <AppNavigator />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

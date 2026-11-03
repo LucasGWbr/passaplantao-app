@@ -1,5 +1,9 @@
 # PassaPlantão — App Mobile (Sprint 1)
 
+## Atualização de leitos, checklist e funcionários
+
+Antes de usar as telas novas, aplique [`database/20261103_leitos_checklist.sql`](database/20261103_leitos_checklist.sql) no SQL Editor do Supabase e publique a Edge Function `gerenciar-funcionarios` conforme [`database/README.md`](database/README.md). A migração converte os leitos textuais existentes, cria as tabelas do checklist e mantém as confirmações sem atualização ou exclusão.
+
 App em React Native (Expo) + Supabase para registro da passagem de plantão de enfermagem.
 
 ## O que já está pronto nesta sprint

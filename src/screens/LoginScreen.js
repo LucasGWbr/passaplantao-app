@@ -8,9 +8,11 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from "../context/AuthContext";
-import { cores, fontes } from "../theme";
+import { cores, fontes } from "../theme.js";
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -34,10 +36,12 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+      <ScrollView contentInsetAdjustmentBehavior="never" contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <View style={styles.logo}>
         <View style={styles.logoCirculo}>
           <Text style={styles.logoIniciais}>PP</Text>
@@ -79,16 +83,23 @@ export default function LoginScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+      </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: cores.fundo },
   container: {
     flex: 1,
     backgroundColor: cores.fundo,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: 28,
+    paddingVertical: 24,
   },
   logo: { alignItems: "center", marginBottom: 20 },
   logoCirculo: {
