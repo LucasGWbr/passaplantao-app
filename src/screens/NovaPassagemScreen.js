@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { passagensApi, checklistApi, ESTADOS_GERAIS, getMeuProfissionalId } from '../services/api';
+import { passagensApi, checklistApi, pacientesApi, ESTADOS_GERAIS, getMeuProfissionalId } from '../services/api';
 import { colors, space, radius, shadow, estadoVisual } from '../theme.js';
+import { NIVEIS_DEPENDENCIA } from '../utils/formatters';
 
 export default function NovaPassagemScreen({ route, navigation }) {
   const { paciente, passagem } = route.params; // passagem existe => edição
   const editando = !!passagem;
   const [estado, setEstado] = useState(passagem?.estado_geral ?? ESTADOS_GERAIS[0]);
+  const [nivelDependencia, setNivelDependencia] = useState(paciente?.nivel_dependencia ?? 'Cuidados Mínimos');
   const [observacao, setObservacao] = useState(passagem?.observacao ?? '');
   const [pendencias, setPendencias] = useState(
     (passagem?.pendencias ?? []).map((p) => ({ id: p.id, descricao: p.descricao }))
@@ -16,6 +18,17 @@ export default function NovaPassagemScreen({ route, navigation }) {
   const [loadingChecklist, setLoadingChecklist] = useState(!!passagem?.id);
   const [saving, setSaving] = useState(false);
   const [meuProfissionalId, setMeuProfissionalId] = useState(null);
+  const [tipoFicha, setTipoFicha] = useState(passagem?.tipo_ficha ?? (paciente?.setor?.toLowerCase?.().includes('obst') ? 'obstetrica' : 'clinica'));
+  const [ficha, setFicha] = useState(passagem?.ficha ?? {});
+  const atualizarFicha = (campo, valor) => setFicha((atual) => ({ ...atual, [campo]: valor }));
+  const gruposFicha = tipoFicha === 'obstetrica' ? [
+    ['Avaliação materna', [['consciencia','Consciência',['Lúcido','Confuso','Sonolento','Comunicativo','Não verbaliza','Gemente']],['dor','Dor',['Sim','Não']],['local_dor','Local da dor'],['respiracao','Padrão respiratório',['Eupneico','Dispneico','Tosse produtiva','Tosse improdutiva']],['dieta','Dieta',['ABDVO','APDVO','ARDVO']],['acesso','Acesso venoso',['MSD','MSE','Sem acesso','Salinizado','Soroterapia']],['utero','Útero',['Contraído abaixo da cicatriz umbilical','Contraído na altura da cicatriz umbilical','Contraído acima da cicatriz umbilical']],['loquios','Lóquios',['Pequena quantidade','Quantidade moderada','Grande quantidade']],['curativo','Curativo',['Sim','Não']],['local_curativo','Local / aspecto do curativo'],['eliminacao_vesical','Eliminação vesical',['Presentes','Ausentes','SVA','SVD']],['quantidade_svd','Quantidade / irrigação'],['eliminacao_intestinal','Eliminação intestinal',['Presentes','Ausentes']]]],
+    ['Sinais vitais', [['pa','PA'],['fc','FC'],['fr','FR'],['tax','Temperatura'],['sat','Saturação'],['hgt','HGT']]],
+    ['Recém-nascido (se aplicável)', [['rn_sexo','Sexo do RN',['Feminino','Masculino']],['rn_dieta','Dieta do RN',['Seio materno','Fórmula']],['rn_diurese','Diurese',['Presente','Ausente']],['rn_meconio','Mecônio',['Presente','Ausente']],['rn_sinais','Sinais vitais do RN']]],
+  ] : [
+    ['Avaliação clínica', [['consciencia','Consciência',['Lúcido','Confuso','Sonolento','Comunicativo','Não verbaliza','Gemente']],['dor','Dor',['Sim','Não']],['local_dor','Local da dor'],['respiracao','Padrão respiratório',['Eupneico','Dispneico','O₂ óculos nasal','O₂ máscara de Hudson','Tosse produtiva','Tosse improdutiva']],['oxigenio','Oxigênio (L/min)'],['dieta','Dieta',['ABDVO','APDVO','ARDVO','NPO','SNE','SNG aberta']],['dieta_detalhe','Dieta / velocidade (ml/h)'],['acesso','Acesso venoso',['MSD','MSE','Central','Sem acesso','Salinizado','Soroterapia','Bomba de infusão']],['acesso_detalhe','Acesso / infusão (ml/h)'],['abdomen','Abdômen',['Flácido','Globoso','Distendido','Timpânico']],['curativo','Curativo',['Sim','Não']],['curativo_detalhe','Local / aspecto do curativo'],['dreno','Drenos',['Penrose','Sump','Portovac','Tórax']],['dreno_detalhe','Secreção / quantidade'],['eliminacao_vesical','Eliminação vesical',['Presentes','Ausentes','SVA','SVD','Irrigação']],['eliminacao_vesical_detalhe','Débito / detalhe'],['eliminacao_intestinal','Eliminação intestinal',['Presentes','Ausentes','Fralda']]]],
+    ['Sinais vitais', [['pa','PA'],['fc','FC'],['fr','FR'],['tax','Temperatura'],['sat','Saturação'],['hgt','HGT']]],
+  ];
 
   useEffect(() => {
     getMeuProfissionalId().then(setMeuProfissionalId).catch((e) => Alert.alert('Erro', e.message));
@@ -38,13 +51,19 @@ export default function NovaPassagemScreen({ route, navigation }) {
   const setItemChecklist = (idx, patch) => setItensChecklist((prev) => prev.map((item, i) => i === idx ? { ...item, ...patch } : item));
   const removeItemChecklist = (idx) => setItensChecklist((prev) => prev.filter((_, i) => i !== idx));
 
-  const salvar = async () => {
-    if (!observacao.trim()) return Alert.alert('Atenção', 'Descreva a observação.');
+  const salvar = async (rascunho = true) => {
     setSaving(true);
     try {
-      const dados = { estado_geral: estado, observacao: observacao.trim(), pendencias, itensChecklist };
+      const dados = { estado_geral: estado, observacao: observacao.trim(), pendencias, itensChecklist, ficha, tipo_ficha: tipoFicha, rascunho };
       if (editando) await passagensApi.update(passagem.id, dados);
       else await passagensApi.create({ ...dados, paciente_id: paciente.id });
+
+      // Atualiza o nível de dependência do paciente se foi alterado
+      if (nivelDependencia && nivelDependencia !== paciente.nivel_dependencia) {
+        await pacientesApi.updateNivelDependencia(paciente.id, nivelDependencia);
+        paciente.nivel_dependencia = nivelDependencia;
+      }
+
       navigation.goBack();
     } catch (e) {
       Alert.alert('Erro', e.message);
@@ -57,6 +76,15 @@ export default function NovaPassagemScreen({ route, navigation }) {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" style={{ backgroundColor: colors.bg }} contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
         <Text style={s.paciente}>{paciente.identificacao}{paciente.leito ? ` · Leito ${paciente.leito}` : ''}</Text>
+        {paciente.data_nascimento ? <Text style={s.helper}>Nascimento: {paciente.data_nascimento.split('-').reverse().join('/')}</Text> : null}
+
+        <View style={s.card}>
+          <Text style={s.label}>Ficha de passagem · preenchimento parcial</Text>
+          <Text style={s.helper}>Os campos começam em branco. Marque ou preencha somente o que foi observado; você pode salvar e continuar depois.</Text>
+          <View style={s.chips}>{[['clinica','Clínica / cirúrgica'],['obstetrica','Obstetrícia']].map(([value,label]) => <TouchableOpacity key={value} style={[s.chip, tipoFicha === value && s.templateSelected]} onPress={() => setTipoFicha(value)}><Text style={{ color: tipoFicha === value ? '#fff' : colors.text, fontWeight: '700' }}>{label}</Text></TouchableOpacity>)}</View>
+          {gruposFicha.map(([grupo, campos]) => <View key={grupo} style={s.formSection}><Text style={s.sectionTitle}>{grupo}</Text>{campos.map(([key,label,opcoes]) => <View key={key} style={s.field}><Text style={s.fieldLabel}>{label}</Text>{opcoes ? <View style={s.chips}>{opcoes.map((opcao) => <TouchableOpacity key={opcao} style={[s.option, ficha[key] === opcao && s.optionSelected]} onPress={() => atualizarFicha(key, ficha[key] === opcao ? '' : opcao)}><Text style={[s.optionText, ficha[key] === opcao && s.optionTextSelected]}>{opcao}</Text></TouchableOpacity>)}</View> : <TextInput style={s.input} value={ficha[key] ?? ''} onChangeText={(v) => atualizarFicha(key, v)} placeholder="Preencher se aplicável" placeholderTextColor={colors.muted} />}</View>)}</View>)}
+          <TextInput style={s.input} value={ficha.intercorrencias ?? ''} onChangeText={(v) => atualizarFicha('intercorrencias', v)} placeholder="Intercorrências" placeholderTextColor={colors.muted} multiline />
+        </View>
 
         <View style={s.card}>
           <Text style={s.label}>Estado geral</Text>
@@ -71,6 +99,29 @@ export default function NovaPassagemScreen({ route, navigation }) {
                   onPress={() => setEstado(c)}
                 >
                   <Text style={{ color: on ? '#fff' : v.cor, fontWeight: '700' }}>{c}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={s.card}>
+          <Text style={s.label}>Nível de dependência (Enfermagem)</Text>
+          <View style={s.chips}>
+            {NIVEIS_DEPENDENCIA.map((item) => {
+              const on = nivelDependencia === item.valor;
+              return (
+                <TouchableOpacity
+                  key={item.valor}
+                  style={[
+                    s.chip,
+                    { borderColor: item.cor, backgroundColor: on ? item.cor : item.fundo },
+                  ]}
+                  onPress={() => setNivelDependencia(item.valor)}
+                >
+                  <Text style={{ color: on ? '#fff' : item.cor, fontWeight: '700' }}>
+                    {item.rotulo}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -114,7 +165,9 @@ export default function NovaPassagemScreen({ route, navigation }) {
               </>}
             </View>
           ))}
-          <TouchableOpacity style={s.addChecklist} onPress={addItemChecklist}><Text style={s.addTxt}>+ Adicionar item</Text></TouchableOpacity>
+          <TouchableOpacity style={s.addChecklist} onPress={addItemChecklist}>
+            <Text style={s.addChecklistText}>+ Adicionar item ao checklist</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={s.card}>
@@ -135,8 +188,11 @@ export default function NovaPassagemScreen({ route, navigation }) {
           </View>
         </View>
 
-        <TouchableOpacity style={s.btn} onPress={salvar} disabled={saving || loadingChecklist}>
-          {saving || loadingChecklist ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>{editando ? 'Salvar alterações' : 'Registrar passagem'}</Text>}
+        <TouchableOpacity style={s.btn} onPress={() => salvar(true)} disabled={saving || loadingChecklist}>
+          {saving || loadingChecklist ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Salvar rascunho e continuar depois</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.btn, s.finalizarBtn]} onPress={() => salvar(false)} disabled={saving || loadingChecklist}>
+          <Text style={s.btnText}>Concluir passagem</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -167,7 +223,27 @@ const s = StyleSheet.create({
   priorityRotinaSelected: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
   priorityText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
   priorityTextSelected: { color: colors.text },
-  addChecklist: { alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: space.lg, paddingVertical: 9 },
+  addChecklist: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.lg,
+    paddingVertical: 10,
+    alignSelf: 'flex-start',
+    marginTop: space.xs,
+  },
+  addChecklistText: { color: colors.primary, fontWeight: '800', fontSize: 13 },
+  templateSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  formSection: { borderTopWidth: 1, borderColor: colors.border, paddingTop: space.md, gap: space.sm },
+  sectionTitle: { color: colors.text, fontWeight: '800', fontSize: 15 },
+  field: { gap: 6 },
+  fieldLabel: { color: colors.text, fontWeight: '600', fontSize: 14 },
+  option: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 7 },
+  optionSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  optionText: { color: colors.text, fontSize: 13 },
+  optionTextSelected: { color: '#fff', fontWeight: '700' },
   btn: { backgroundColor: colors.primary, padding: 16, borderRadius: radius.md, alignItems: 'center', marginTop: space.sm },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  finalizarBtn: { backgroundColor: '#15803D', marginTop: 0 },
 });

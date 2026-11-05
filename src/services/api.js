@@ -74,24 +74,82 @@ export const pacientesApi = {
     }));
   },
 
-  create: async ({ identificacao, leito_id, setor_id }) => {
+  create: async ({
+    identificacao,
+    leito_id,
+    leito = null,
+    setor_id,
+    cpf = null,
+    data_nascimento = null,
+    prontuario = null,
+    nome_mae = null,
+    genero = null,
+    nivel_dependencia = null,
+  }) => {
     requireId(setor_id, 'Setor');
     if (!identificacao?.trim()) throw new Error('Informe a identificação do paciente.');
     const paciente = unwrap(await supabase
       .from('pacientes')
-      .insert({ identificacao: identificacao.trim(), leito_id: leito_id || null, setor_id, ativo: true, data_alta: null })
+      .insert({
+        identificacao: identificacao.trim(),
+        leito: leito ?? '',
+        leito_id: leito_id || null,
+        setor_id,
+        cpf: cpf?.trim() || null,
+        data_nascimento: data_nascimento || null,
+        prontuario: prontuario?.trim() || null,
+        nome_mae: nome_mae?.trim() || null,
+        genero: genero || null,
+        nivel_dependencia: nivel_dependencia || null,
+        ativo: true,
+        data_alta: null,
+      })
       .select('*, leito_detalhe:leitos!pacientes_leito_id_fkey(id, identificacao)')
       .single());
     if (!paciente) throw new Error('O Supabase não retornou o paciente cadastrado.');
     return { ...paciente, leito: paciente.leito_detalhe?.identificacao ?? null };
   },
 
-  update: async (id, { identificacao, leito_id }) => {
+  update: async (id, {
+    identificacao,
+    leito_id,
+    leito = null,
+    cpf = null,
+    data_nascimento = null,
+    prontuario = null,
+    nome_mae = null,
+    genero = null,
+    nivel_dependencia = null,
+  }) => {
+    requireId(id, 'Paciente');
+    const updatePayload = {
+      identificacao: identificacao.trim(),
+      leito_id: leito_id || null,
+      ...(leito ? { leito } : {}),
+      cpf: cpf?.trim() || null,
+      data_nascimento: data_nascimento || null,
+      prontuario: prontuario?.trim() || null,
+      nome_mae: nome_mae?.trim() || null,
+      genero: genero || null,
+      nivel_dependencia: nivel_dependencia || null,
+    };
+    const paciente = unwrap(
+      await supabase
+        .from('pacientes')
+        .update(updatePayload)
+        .eq('id', id)
+        .select('*, leito_detalhe:leitos!pacientes_leito_id_fkey(id, identificacao)')
+        .single()
+    );
+    return { ...paciente, leito: paciente.leito_detalhe?.identificacao ?? null };
+  },
+
+  updateNivelDependencia: async (id, nivel_dependencia) => {
     requireId(id, 'Paciente');
     const paciente = unwrap(
       await supabase
         .from('pacientes')
-        .update({ identificacao: identificacao.trim(), leito_id: leito_id || null })
+        .update({ nivel_dependencia })
         .eq('id', id)
         .select('*, leito_detalhe:leitos!pacientes_leito_id_fkey(id, identificacao)')
         .single()
@@ -198,10 +256,124 @@ export const funcionariosApi = {
     if (data?.error) throw new Error(data.error);
     return data;
   },
-  list: async () => funcionariosApi.request({ action: 'list' }),
-  create: async (dados) => funcionariosApi.request({ action: 'create', ...dados }),
-  update: async (dados) => funcionariosApi.request({ action: 'update', ...dados }),
-  desativar: async (id) => funcionariosApi.request({ action: 'deactivate', id }),
+
+  list: async () => {
+    try {
+      return await funcionariosApi.request({ action: 'list' });
+    } catch (edgeErr) {
+      console.warn('Edge function gerenciar-funcionarios indisponível, usando consulta direta:', edgeErr.message);
+      // Fallback para consulta direta via Supabase Client
+      const { data: funcs, error: errFunc } = await supabase
+        .from('profissionais')
+        .select(`
+          id, nome, email, matricula, funcao, nivel_acesso, ativo, auth_id,
+          profissional_setor(setor:setores(id, nome))
+        `)
+        .order('ativo', { ascending: false })
+        .order('nome');
+
+      const { data: setores, error: errSetores } = await supabase
+        .from('setores')
+        .select('id, nome')
+        .order('nome');
+
+      if (errFunc || errSetores) {
+        throw new Error(errFunc?.message || errSetores?.message || edgeErr.message);
+      }
+
+      const formatados = (funcs || []).map((f) => ({
+        ...f,
+        setores: (f.profissional_setor || []).map((ps) => ps.setor).filter(Boolean),
+      }));
+
+      return {
+        funcionarios: formatados,
+        setores: setores || [],
+      };
+    }
+  },
+
+  create: async (dados) => {
+    try {
+      return await funcionariosApi.request({ action: 'create', ...dados });
+    } catch (edgeErr) {
+      console.warn('Edge function indisponível para criação, tentando fallback:', edgeErr.message);
+      // Se a Edge Function não estiver implantada, tenta inserir o registro de profissional
+      const { nome, email, matricula, funcao, nivel_acesso, setorIds = [] } = dados;
+      if (!nome?.trim() || !email?.trim()) throw new Error('Nome e email são obrigatórios.');
+
+      const { data: novoProf, error: profErr } = await supabase
+        .from('profissionais')
+        .insert({
+          nome: nome.trim(),
+          email: email.trim().toLowerCase(),
+          matricula: matricula?.trim() || null,
+          funcao: funcao?.trim() || 'Enfermeiro',
+          nivel_acesso: nivel_acesso || 'assistencial',
+          ativo: true,
+        })
+        .select()
+        .single();
+
+      if (profErr) throw new Error(profErr.message || edgeErr.message);
+
+      if (setorIds?.length && novoProf?.id) {
+        await supabase
+          .from('profissional_setor')
+          .insert(setorIds.map((setorId) => ({ profissional_id: novoProf.id, setor_id: setorId })));
+      }
+
+      return { ok: true, profissional: novoProf };
+    }
+  },
+
+  update: async (dados) => {
+    try {
+      return await funcionariosApi.request({ action: 'update', ...dados });
+    } catch (edgeErr) {
+      console.warn('Edge function indisponível para atualização, usando fallback:', edgeErr.message);
+      const { id, nome, matricula, funcao, nivel_acesso, setorIds = [] } = dados;
+      requireId(id, 'Funcionário');
+
+      const { data: prof, error: updErr } = await supabase
+        .from('profissionais')
+        .update({
+          nome: nome?.trim(),
+          matricula: matricula?.trim() || null,
+          funcao: funcao?.trim(),
+          nivel_acesso: nivel_acesso || undefined,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updErr) throw new Error(updErr.message || edgeErr.message);
+
+      await supabase.from('profissional_setor').delete().eq('profissional_id', id);
+      if (setorIds?.length) {
+        await supabase
+          .from('profissional_setor')
+          .insert(setorIds.map((setorId) => ({ profissional_id: id, setor_id: setorId })));
+      }
+
+      return { ok: true, profissional: prof };
+    }
+  },
+
+  desativar: async (id) => {
+    try {
+      return await funcionariosApi.request({ action: 'deactivate', id });
+    } catch (edgeErr) {
+      console.warn('Edge function indisponível para desativação, usando fallback:', edgeErr.message);
+      requireId(id, 'Funcionário');
+      const { error } = await supabase
+        .from('profissionais')
+        .update({ ativo: false, desativado_em: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw new Error(error.message || edgeErr.message);
+      return { ok: true };
+    }
+  },
 };
 
 export const passagensApi = {
@@ -215,18 +387,15 @@ export const passagensApi = {
     ),
 
   // pendencias: [{ descricao }]
-  create: async ({ paciente_id, estado_geral, observacao, pendencias = [], itensChecklist = [] }) => {
+  create: async ({ paciente_id, estado_geral, observacao, pendencias = [], itensChecklist = [], ficha = {}, tipo_ficha = 'clinica', rascunho = true }) => {
     requireId(paciente_id, 'Paciente');
     const paciente = unwrap(await supabase.from('pacientes').select('ativo').eq('id', paciente_id).single());
     if (paciente?.ativo === false) throw new Error('Não é possível registrar passagem para um paciente que recebeu alta.');
-    if (await checklistApi.hasCriticalPending(paciente_id)) {
-      throw new Error('Confirme os itens críticos pendentes antes de registrar a próxima passagem.');
-    }
     const profissional_id = await getMeuProfissionalId();
     const passagem = unwrap(
       await supabase
         .from('passagens_plantao')
-        .insert({ paciente_id, profissional_id, estado_geral, observacao, data_hora: new Date().toISOString() })
+        .insert({ paciente_id, profissional_id, estado_geral, observacao, ficha, tipo_ficha, rascunho, data_hora: new Date().toISOString() })
         .select()
         .single()
     );
@@ -251,9 +420,9 @@ export const passagensApi = {
   },
 
   // Pendencias e itensChecklist: itens ausentes sao cancelados logicamente.
-  update: async (id, { estado_geral, observacao, pendencias = [], itensChecklist }) => {
+  update: async (id, { estado_geral, observacao, pendencias = [], itensChecklist, ficha = {}, tipo_ficha = 'clinica', rascunho = true }) => {
     const rows = unwrap(
-      await supabase.from('passagens_plantao').update({ estado_geral, observacao }).eq('id', id).select()
+      await supabase.from('passagens_plantao').update({ estado_geral, observacao, ficha, tipo_ficha, rascunho }).eq('id', id).select()
     );
     if (!rows?.length) throw new Error('Só o autor pode editar esta passagem.');
 

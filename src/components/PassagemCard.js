@@ -19,6 +19,7 @@ export default function PassagemCard({
       <View style={{ flex: 1, gap: space.xs }}>
         <View style={s.headerTop}>
           <EstadoBadge estado={item.estado_geral} small />
+          {item.rascunho && <Text style={s.draftBadge}>Rascunho</Text>}
           <Text style={s.meta}>{formatData(item.data_hora)}</Text>
         </View>
         {!!item.profissionais?.nome && <Text style={s.autor}>{item.profissionais.nome}</Text>}
@@ -49,6 +50,14 @@ export default function PassagemCard({
       {aberto && (
         <View style={s.body}>
           {!!item.observacao && <Text style={s.obs}>{item.observacao}</Text>}
+          {!!item.ficha && Object.entries(item.ficha).some(([, valor]) => !!valor) && (
+            <View style={s.fichaBox}>
+              <Text style={s.pendTitulo}>Ficha {item.tipo_ficha === 'obstetrica' ? 'obstétrica' : 'clínica / cirúrgica'}</Text>
+              {Object.entries(item.ficha).filter(([, valor]) => !!valor).map(([campo, valor]) => (
+                <Text key={campo} style={s.fichaText}>{campo.replaceAll('_', ' ')}: {valor}</Text>
+              ))}
+            </View>
+          )}
 
           {pend.length > 0 && (
             <View style={s.pendBox}>
@@ -82,9 +91,12 @@ const s = StyleSheet.create({
   autor: { color: colors.muted, fontSize: 13 },
   resumo: { color: colors.text, fontSize: 14 },
   pendResumo: { color: '#B45309', fontSize: 12, fontWeight: '600' },
+  draftBadge: { color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, overflow: 'hidden', fontSize: 11, fontWeight: '700' },
   chevron: { color: colors.muted, fontSize: 18, marginTop: 2 },
   body: { marginTop: space.md, gap: space.md },
   obs: { color: colors.text, fontSize: 15, lineHeight: 22 },
+  fichaBox: { backgroundColor: colors.bg, borderRadius: radius.sm, padding: space.md, gap: 4 },
+  fichaText: { color: colors.text, fontSize: 14, textTransform: 'capitalize' },
   pendBox: { backgroundColor: colors.bg, borderRadius: radius.sm, padding: space.md, gap: space.xs },
   pendTitulo: { fontSize: 12, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', marginBottom: 2 },
   pendRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm, paddingVertical: 3 },
