@@ -1,13 +1,13 @@
 // Tema central: cores, espaçamentos e a cor de cada estado do paciente.
 export const colors = {
-  bg: '#F3F5F9',
+  bg: '#F7F9FC',
   surface: '#FFFFFF',
-  text: '#1B2430',
-  muted: '#6B7686',
-  border: '#E3E8F0',
-  primary: '#1D4ED8',
-  danger: '#DC2626',
-  success: '#16A34A',
+  text: '#172B4D',
+  muted: '#64748B',
+  border: '#D9E2EC',
+  primary: '#0D4F86',
+  danger: '#EF4444',
+  success: '#10B981',
 };
 
 // Compatibilidade com as primeiras telas do app, que usam os nomes em português.
@@ -43,9 +43,9 @@ export const shadow = {
 
 const semAcento = (s = '') => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
-const VERDE = { cor: '#16A34A', fundo: '#DCFCE7' };
+const VERDE = { cor: '#047857', fundo: '#DCFCE7' };
 const AMBAR = { cor: '#D97706', fundo: '#FEF3C7' };
-const VERMELHO = { cor: '#DC2626', fundo: '#FEE2E2' };
+const VERMELHO = { cor: '#EF4444', fundo: '#FEE2E2' };
 const AZUL = { cor: '#2563EB', fundo: '#DBEAFE' };
 const CINZA = { cor: '#94A3B8', fundo: '#F1F5F9' };
 

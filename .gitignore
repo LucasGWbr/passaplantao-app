@@ -1,3 +1,9 @@
 .env
 node_modules/
-supabase/
+supabase/*
+!supabase/functions/
+supabase/functions/*
+!supabase/functions/gerenciar-funcionarios/
+.expo/dev/logs/start.log
+
+!supabase/config.toml

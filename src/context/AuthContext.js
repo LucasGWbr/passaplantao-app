@@ -15,7 +15,7 @@ export function AuthProvider({ children }) {
     }
     const { data, error } = await supabase
       .from("profissionais")
-      .select("id, nome, email, funcao, auth_id, ativo")
+      .select("id, nome, email, funcao, auth_id, ativo, nivel_acesso")
       .eq("auth_id", authId)
       .single();
 

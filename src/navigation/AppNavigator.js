@@ -11,6 +11,7 @@ import PacienteDetalhesScreen from "../screens/PacienteDetalhesScreen";
 import NovaPassagemScreen from "../screens/NovaPassagemScreen";
 import PacienteFormScreen from '../screens/PacienteFormScreen';
 import LeitosScreen from '../screens/LeitosScreen';
+import AdministracaoScreen from '../screens/AdministracaoScreen';
 import FuncionariosScreen from '../screens/FuncionariosScreen';
 
 
@@ -70,6 +71,7 @@ export default function AppNavigator() {
             <Stack.Screen name="NovaPassagem" component={NovaPassagemScreen} options={opcoesHeader} />
             <Stack.Screen name="PacienteForm" component={PacienteFormScreen} options={{ title: 'Paciente' }} />
             <Stack.Screen name="Leitos" component={LeitosScreen} options={{ title: 'Leitos do setor' }} />
+            <Stack.Screen name="Administracao" component={AdministracaoScreen} options={{ title: 'Administração' }} />
             <Stack.Screen name="Funcionarios" component={FuncionariosScreen} options={{ title: 'Funcionários' }} />
           </>
         )}

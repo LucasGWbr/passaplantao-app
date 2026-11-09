@@ -6,26 +6,33 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { cores, fontes } from "../theme.js";
 
+import { podeAdministrar } from '../utils/permissoes';
+
 export default function SetoresScreen({ navigation }) {
   const { profissional, signOut } = useAuth();
   const [setores, setSetores] = useState([]);
   const [carregando, setCarregando] = useState(true);
-  const perfilGestor = /coordena|supervisor/i.test(profissional?.funcao ?? '');
-  const perfilCoordenacao = /coordena/i.test(profissional?.funcao ?? '');
+  const perfilGestor = podeAdministrar(profissional);
+  const perfilCoordenacao = perfilGestor;
 
   const carregarSetores = useCallback(async () => {
-    if (!profissional) return;
+    if (!profissional) { setCarregando(false); return; }
     setCarregando(true);
+    if (perfilGestor) {
+      const { data, error } = await supabase.from('setores').select('id,nome,ativo').eq('ativo', true).order('nome');
+      if (error) console.warn('Erro ao carregar setores:', error.message);
+      setSetores(data ?? []); setCarregando(false); return;
+    }
     const { data, error } = await supabase
       .from("profissional_setor")
-      .select("setor:setores(id, nome)")
-      .eq("profissional_id", profissional.id);
+      .select("setor:setores(id, nome, ativo)")
+      .eq("profissional_id", profissional.id).eq("ativo", true);
 
     if (error) {
       console.warn("Erro ao carregar setores:", error.message);
       setSetores([]);
     } else {
-      setSetores(data.map((item) => item.setor).filter(Boolean));
+      setSetores(data.map((item) => item.setor).filter((setor) => setor?.ativo));
     }
     setCarregando(false);
   }, [profissional]);
@@ -50,8 +57,8 @@ export default function SetoresScreen({ navigation }) {
       <Text style={styles.titulo}>Selecione o setor</Text>
 
       {perfilCoordenacao && (
-        <TouchableOpacity style={styles.gerenciarFuncionarios} onPress={() => navigation.navigate('Funcionarios')}>
-          <Text style={styles.gerenciarLeitosTexto}>Gerenciar funcionários</Text>
+        <TouchableOpacity style={styles.gerenciarFuncionarios} onPress={() => navigation.navigate('Administracao')}>
+          <Text style={styles.gerenciarLeitosTexto}>Painel de administração</Text>
         </TouchableOpacity>
       )}
 

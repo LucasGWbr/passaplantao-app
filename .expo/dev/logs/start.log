@@ -1155,3 +1155,14 @@
 {"_e":"metro:server_log","_t":1793741296583,"level":"warn","data":["Failed to download the latest version of React Native DevTools. Using a fallback version instead. Connect to the internet or check your network settings."]}
 {"_e":"expo:dev-tools-plugin:load","_t":1793741296696,"plugins":[]}
 {"_e":"metro:instantiate","_t":1793741299450,"atlas":false,"workers":6,"host":"::","port":8081}
+{"_e":"root:init","_t":1794167648387,"format":"v0-jsonl","version":"57.0.24"}
+{"_e":"env:mode","_t":1794167648392,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1794167648400,"mode":"development","files":["../..\\..\\.env"],"env":{"EXPO_PUBLIC_SUPABASE_ANON_KEY":"sb_publishable_fzbHHr4flggm023m1o6u5w_CaZeutkk","EXPO_PUBLIC_SUPABASE_URL":"https://mpgzdptvvhotlwezkeev.supabase.co"}}
+{"_e":"devserver:start","_t":1794167650176,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1794167652258,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1794167653515,"plugins":[]}
+{"_e":"metro:instantiate","_t":1794167658520,"atlas":false,"workers":10,"host":"::","port":8081}
+{"_e":"env:mode","_t":1794167662180,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"metro:bundling:started","_t":1794167917750,"id":"1","platform":"ios","environment":null,"entry":"node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1794167917751,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1794167937163,"id":"1","progress":0,"total":1,"current":0}

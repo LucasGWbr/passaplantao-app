@@ -1,0 +1,4 @@
+# O handler valida o token com auth.getUser() e exige perfil ativo de gestão.
+# Evita a verificação legada do gateway, incompatível com chaves JWT assimétricas.
+[functions.gerenciar-funcionarios]
+verify_jwt = false

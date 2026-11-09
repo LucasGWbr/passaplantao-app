@@ -10,10 +10,6 @@ export default function NovaPassagemScreen({ route, navigation }) {
   const [estado, setEstado] = useState(passagem?.estado_geral ?? ESTADOS_GERAIS[0]);
   const [nivelDependencia, setNivelDependencia] = useState(paciente?.nivel_dependencia ?? 'Cuidados Mínimos');
   const [observacao, setObservacao] = useState(passagem?.observacao ?? '');
-  const [pendencias, setPendencias] = useState(
-    (passagem?.pendencias ?? []).map((p) => ({ id: p.id, descricao: p.descricao }))
-  );
-  const [nova, setNova] = useState('');
   const [itensChecklist, setItensChecklist] = useState([]);
   const [loadingChecklist, setLoadingChecklist] = useState(!!passagem?.id);
   const [saving, setSaving] = useState(false);
@@ -41,28 +37,23 @@ export default function NovaPassagemScreen({ route, navigation }) {
     return () => { ativo = false; };
   }, [passagem?.id]);
 
-  const addPendencia = () => {
-    if (!nova.trim()) return;
-    setPendencias((prev) => [...prev, { descricao: nova.trim() }]);
-    setNova('');
-  };
-  const removePendencia = (idx) => setPendencias((prev) => prev.filter((_, i) => i !== idx));
   const addItemChecklist = () => setItensChecklist((prev) => [...prev, { descricao: '', prioridade: 'rotina' }]);
   const setItemChecklist = (idx, patch) => setItensChecklist((prev) => prev.map((item, i) => i === idx ? { ...item, ...patch } : item));
   const removeItemChecklist = (idx) => setItensChecklist((prev) => prev.filter((_, i) => i !== idx));
 
   const salvar = async (rascunho = true) => {
+    if (saving || loadingChecklist) return;
+    if (editando && passagem.rascunho !== true) { Alert.alert('Passagem finalizada', 'Este registro está disponível somente para consulta.'); return; }
     setSaving(true);
     try {
-      const dados = { estado_geral: estado, observacao: observacao.trim(), pendencias, itensChecklist, ficha, tipo_ficha: tipoFicha, rascunho };
-      if (editando) await passagensApi.update(passagem.id, dados);
-      else await passagensApi.create({ ...dados, paciente_id: paciente.id });
-
-      // Atualiza o nível de dependência do paciente se foi alterado
+      // Atualiza dados do paciente antes de selar o registro da passagem.
       if (nivelDependencia && nivelDependencia !== paciente.nivel_dependencia) {
         await pacientesApi.updateNivelDependencia(paciente.id, nivelDependencia);
         paciente.nivel_dependencia = nivelDependencia;
       }
+      const dados = { estado_geral: estado, observacao: observacao.trim(), itensChecklist, ficha, tipo_ficha: tipoFicha, rascunho };
+      if (editando) await passagensApi.update(passagem.id, dados);
+      else await passagensApi.create({ ...dados, paciente_id: paciente.id });
 
       navigation.goBack();
     } catch (e) {
@@ -72,17 +63,22 @@ export default function NovaPassagemScreen({ route, navigation }) {
     }
   };
 
+  if (editando && passagem.rascunho !== true) return <View style={s.container}><Text style={s.paciente}>Passagem finalizada</Text><Text style={s.helper}>Este registro está disponível somente para consulta no histórico.</Text></View>;
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" style={{ backgroundColor: colors.bg }} contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
+        <Text style={s.titulo}>Passagem de plantão</Text>
+        <Text style={s.helper}>Comunicação que cuida.</Text>
         <Text style={s.paciente}>{paciente.identificacao}{paciente.leito ? ` · Leito ${paciente.leito}` : ''}</Text>
         {paciente.data_nascimento ? <Text style={s.helper}>Nascimento: {paciente.data_nascimento.split('-').reverse().join('/')}</Text> : null}
 
         <View style={s.card}>
           <Text style={s.label}>Ficha de passagem · preenchimento parcial</Text>
           <Text style={s.helper}>Os campos começam em branco. Marque ou preencha somente o que foi observado; você pode salvar e continuar depois.</Text>
-          <View style={s.chips}>{[['clinica','Clínica / cirúrgica'],['obstetrica','Obstetrícia']].map(([value,label]) => <TouchableOpacity key={value} style={[s.chip, tipoFicha === value && s.templateSelected]} onPress={() => setTipoFicha(value)}><Text style={{ color: tipoFicha === value ? '#fff' : colors.text, fontWeight: '700' }}>{label}</Text></TouchableOpacity>)}</View>
-          {gruposFicha.map(([grupo, campos]) => <View key={grupo} style={s.formSection}><Text style={s.sectionTitle}>{grupo}</Text>{campos.map(([key,label,opcoes]) => <View key={key} style={s.field}><Text style={s.fieldLabel}>{label}</Text>{opcoes ? <View style={s.chips}>{opcoes.map((opcao) => <TouchableOpacity key={opcao} style={[s.option, ficha[key] === opcao && s.optionSelected]} onPress={() => atualizarFicha(key, ficha[key] === opcao ? '' : opcao)}><Text style={[s.optionText, ficha[key] === opcao && s.optionTextSelected]}>{opcao}</Text></TouchableOpacity>)}</View> : <TextInput style={s.input} value={ficha[key] ?? ''} onChangeText={(v) => atualizarFicha(key, v)} placeholder="Preencher se aplicável" placeholderTextColor={colors.muted} />}</View>)}</View>)}
+          <View style={s.chips}>{[['clinica','Clínica / cirúrgica'],['obstetrica','Obstetrícia']].map(([value,label]) => <TouchableOpacity key={value} style={[s.chip, tipoFicha === value && s.templateSelected]} onPress={() => setTipoFicha(value)}><Text style={{ color: tipoFicha === value ? '#fff' : colors.text, fontFamily: 'Inter_700Bold' }}>{label}</Text></TouchableOpacity>)}</View>
+          {gruposFicha.map(([grupo, campos]) => <View key={grupo} style={s.formSection}><Text style={s.sectionTitle}>{grupo}</Text>{campos.map(([key,label,opcoes]) => <View key={key} style={s.field}><Text style={s.fieldLabel}>{label}</Text>{opcoes ? <View style={s.chips}>{opcoes.map((opcao) => <TouchableOpacity key={opcao} accessibilityRole="checkbox" accessibilityState={{ checked: ficha[key] === opcao }} style={[s.option, ficha[key] === opcao && s.optionSelected]} onPress={() => atualizarFicha(key, ficha[key] === opcao ? '' : opcao)}><Text style={[s.optionText, ficha[key] === opcao && s.optionTextSelected]}>{ficha[key] === opcao ? '✓ ' : ''}{opcao}</Text></TouchableOpacity>)}</View> : <TextInput style={s.input} value={ficha[key] ?? ''} onChangeText={(v) => atualizarFicha(key, v)} placeholder="Preencher se aplicável" placeholderTextColor={colors.muted} />}</View>)}</View>)}
+          <Text style={s.fieldLabel}>Intercorrências</Text>
           <TextInput style={s.input} value={ficha.intercorrencias ?? ''} onChangeText={(v) => atualizarFicha('intercorrencias', v)} placeholder="Intercorrências" placeholderTextColor={colors.muted} multiline />
         </View>
 
@@ -98,7 +94,7 @@ export default function NovaPassagemScreen({ route, navigation }) {
                   style={[s.chip, { borderColor: v.cor, backgroundColor: on ? v.cor : v.fundo }]}
                   onPress={() => setEstado(c)}
                 >
-                  <Text style={{ color: on ? '#fff' : v.cor, fontWeight: '700' }}>{c}</Text>
+                  <Text style={{ color: on ? '#fff' : v.cor, fontFamily: 'Inter_700Bold' }}>{c}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -119,7 +115,7 @@ export default function NovaPassagemScreen({ route, navigation }) {
                   ]}
                   onPress={() => setNivelDependencia(item.valor)}
                 >
-                  <Text style={{ color: on ? '#fff' : item.cor, fontWeight: '700' }}>
+                  <Text style={{ color: on ? '#fff' : item.cor, fontFamily: 'Inter_700Bold' }}>
                     {item.rotulo}
                   </Text>
                 </TouchableOpacity>
@@ -134,8 +130,8 @@ export default function NovaPassagemScreen({ route, navigation }) {
         </View>
 
         <View style={s.card}>
-          <Text style={s.label}>Checklist da passagem</Text>
-          <Text style={s.helper}>Registre o que a próxima equipe precisa verificar e confirmar.</Text>
+          <Text style={s.label}>Cuidados para o próximo plantão</Text>
+          <Text style={s.helper}>Registre pendências e cuidados, informe a prioridade e a próxima equipe confirmará o recebimento.</Text>
           {itensChecklist.map((item, idx) => (
             <View key={item.id ?? `check-${idx}`} style={s.checkItem}>
               {item.cancelado_em || item.cancelarAgora ? (
@@ -166,33 +162,15 @@ export default function NovaPassagemScreen({ route, navigation }) {
             </View>
           ))}
           <TouchableOpacity style={s.addChecklist} onPress={addItemChecklist}>
-            <Text style={s.addChecklistText}>+ Adicionar item ao checklist</Text>
+            <Text style={s.addChecklistText}>+ Adicionar cuidado ou pendência</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={s.card}>
-          <Text style={s.label}>Pendências para o próximo plantão</Text>
-          {pendencias.map((p, i) => (
-            <View key={p.id ?? `n${i}`} style={s.pendRow}>
-              <Text style={s.pendTxt}>{p.descricao}</Text>
-              <TouchableOpacity hitSlop={8} onPress={() => removePendencia(i)}>
-                <Text style={s.del}>Remover</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-          <View style={s.pendRow}>
-            <TextInput style={[s.input, { flex: 1 }]} value={nova} onChangeText={setNova} placeholder="Nova pendência" placeholderTextColor={colors.muted} onSubmitEditing={addPendencia} returnKeyType="done" />
-            <TouchableOpacity style={s.addBtn} onPress={addPendencia}>
-              <Text style={s.addTxt}>Adicionar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <TouchableOpacity style={s.btn} onPress={() => salvar(true)} disabled={saving || loadingChecklist}>
-          {saving || loadingChecklist ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Salvar rascunho e continuar depois</Text>}
+        <TouchableOpacity style={[s.btn, s.rascunhoBtn, (saving || loadingChecklist) && { opacity: 0.5 }]} onPress={() => salvar(true)} disabled={saving || loadingChecklist}>
+          {saving || loadingChecklist ? <ActivityIndicator color={colors.primary} /> : <Text style={[s.btnText, { color: colors.primary }]}>Salvar rascunho e continuar depois</Text>}
         </TouchableOpacity>
-        <TouchableOpacity style={[s.btn, s.finalizarBtn]} onPress={() => salvar(false)} disabled={saving || loadingChecklist}>
-          <Text style={s.btnText}>Concluir passagem</Text>
+        <TouchableOpacity style={[s.btn, s.finalizarBtn, (saving || loadingChecklist) && { opacity: 0.5 }]} onPress={() => Alert.alert('Finalizar passagem?', 'Após finalizar, o registro não poderá ser editado ou excluído. A próxima equipe poderá consultar e confirmar o recebimento dos cuidados.', [{ text: 'Continuar preenchendo', style: 'cancel' }, { text: 'Finalizar definitivamente', onPress: () => salvar(false) }])} disabled={saving || loadingChecklist}>
+          <Text style={s.btnText}>Finalizar passagem definitivamente</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -201,27 +179,28 @@ export default function NovaPassagemScreen({ route, navigation }) {
 
 const s = StyleSheet.create({
   container: { padding: space.lg, gap: space.lg, flexGrow: 1, width: '100%', maxWidth: 720, alignSelf: 'center' },
-  paciente: { fontSize: 18, fontWeight: '800', color: colors.text },
+  titulo: { fontFamily: 'Inter_700Bold', color: colors.primary, fontSize: 26 },
+  paciente: { fontSize: 18, fontFamily: 'Inter_700Bold', color: colors.text },
   card: { backgroundColor: colors.surface, borderRadius: radius.md, padding: space.lg, gap: space.sm, borderWidth: 1, borderColor: colors.border, ...shadow },
-  label: { fontSize: 12, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.6 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: space.md, fontSize: 16, color: colors.text, backgroundColor: colors.bg },
+  label: { fontSize: 20, lineHeight: 28, fontFamily: 'Inter_600SemiBold', color: colors.primary },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: space.md, fontFamily: 'Inter_400Regular', fontSize: 16, color: colors.text, backgroundColor: colors.surface },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chip: { borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: space.lg, paddingVertical: 8 },
   pendRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   pendTxt: { flex: 1, color: colors.text, fontSize: 15 },
   addBtn: { backgroundColor: colors.primary, paddingHorizontal: space.lg, paddingVertical: 14, borderRadius: radius.sm },
-  addTxt: { color: '#fff', fontWeight: '700' },
-  del: { color: colors.danger, fontWeight: '600' },
-  helper: { color: colors.muted, fontSize: 13 },
+  addTxt: { color: '#fff', fontFamily: 'Inter_700Bold' },
+  del: { color: colors.danger, fontFamily: 'Inter_600SemiBold' },
+  helper: { color: colors.muted, fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 22 },
   confirmedChecklistItem: { gap: space.xs },
-  confirmedChecklistText: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  confirmedChecklistText: { color: colors.text, fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   checkItem: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space.md, gap: space.sm },
   priorityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  priorityChip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: space.md, paddingVertical: 6 },
+  priorityChip: { minHeight: 44, justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: space.md, paddingVertical: 6 },
   priorityCriticoSelected: { backgroundColor: '#FEE2E2', borderColor: '#DC2626' },
   priorityAtencaoSelected: { backgroundColor: '#FEF3C7', borderColor: '#D97706' },
   priorityRotinaSelected: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
-  priorityText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+  priorityText: { color: colors.muted, fontSize: 12, fontFamily: 'Inter_700Bold' },
   priorityTextSelected: { color: colors.text },
   addChecklist: {
     backgroundColor: '#EFF6FF',
@@ -233,17 +212,18 @@ const s = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: space.xs,
   },
-  addChecklistText: { color: colors.primary, fontWeight: '800', fontSize: 13 },
+  addChecklistText: { color: colors.primary, fontFamily: 'Inter_700Bold', fontSize: 13 },
   templateSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   formSection: { borderTopWidth: 1, borderColor: colors.border, paddingTop: space.md, gap: space.sm },
-  sectionTitle: { color: colors.text, fontWeight: '800', fontSize: 15 },
-  field: { gap: 6 },
-  fieldLabel: { color: colors.text, fontWeight: '600', fontSize: 14 },
-  option: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 7 },
-  optionSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  optionText: { color: colors.text, fontSize: 13 },
-  optionTextSelected: { color: '#fff', fontWeight: '700' },
+  sectionTitle: { color: colors.primary, fontFamily: 'Inter_600SemiBold', fontSize: 20, lineHeight: 28 },
+  field: { gap: 8, paddingVertical: 8 },
+  fieldLabel: { color: colors.text, fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+  option: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 12, minHeight: 44, justifyContent: 'center' },
+  optionSelected: { backgroundColor: '#E8F3FA', borderColor: colors.primary, borderWidth: 2 },
+  optionText: { color: colors.text, fontFamily: 'Inter_400Regular', fontSize: 16, lineHeight: 24 },
+  optionTextSelected: { color: colors.primary, fontFamily: 'Inter_700Bold' },
   btn: { backgroundColor: colors.primary, padding: 16, borderRadius: radius.md, alignItems: 'center', marginTop: space.sm },
-  btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  finalizarBtn: { backgroundColor: '#15803D', marginTop: 0 },
+  btnText: { color: '#fff', fontFamily: 'Inter_700Bold', fontSize: 16 },
+  rascunhoBtn: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary },
+  finalizarBtn: { backgroundColor: colors.primary, marginTop: 0 },
 });

@@ -347,7 +347,7 @@ with check (exists (
   join public.passagens_plantao pp on pp.id = ic.passagem_id
   join public.pacientes pa on pa.id = pp.paciente_id
   where ic.id = item_id
-    and ic.registrado_por::text <> public.pp_profissional_atual()
+    and ic.registrado_por::text <> public.pp_profissional_atual()::text
     and public.pp_usuario_tem_setor(pa.setor_id::text)
 ));
 
